@@ -13,4 +13,28 @@ static struct net_device_ops dummy_ops = {
     .transmit = dummy_transmit,
 };
 
-struct net_device *dummy_init(void) {}
+
+// ダミーデバイスの仕様
+// 入力 … なし（データを受信することはない）
+// 出力 … データを破棄
+struct net_device *dummy_init(void) {
+    struct net_device *dev;
+
+    dev = net_device_alloc();
+    if (!dev) {
+        // net_device_allocの中で errorf 呼んでるんだからこれ意味なくない？
+        errorf("net_device_alloc() failure");
+        return NULL;
+    }
+    dev->type = NET_DEVICE_TYPE_DUMMY;
+    dev->mtu = DUMMY_MTU;
+    dev->hlen = 0;
+    dev->alen = 0;
+    dev->ops = &dummy_ops;
+    if (net_device_register(dev) == -1) {
+        errorf("net_device_register() failure");
+        return NULL;
+    }
+    debugf("initialized, dev=%s", dev->name);
+    return dev;
+}
