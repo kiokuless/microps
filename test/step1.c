@@ -11,14 +11,32 @@
 
 static volatile sig_atomic_t terminate;
 
-static void
-on_signal(int s)
-{
+static void on_signal(int s) {
     (void)s;
     terminate = 1;
 }
 
-int
-main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
+    struct net_device *dev;
+
+    signal(SIGINT, on_signal); // Ctrl+Cで抜けれるようにする
+
+    if (net_init() == -1) {
+        errorf("net_init() failure");
+        return -1;
+    }
+    dev = dummy_init();
+    if (!dev) {
+        errorf("dummy_init() failure");
+        return -1;
+    }
+    while(!terminate) {
+        if(net_device_output(dev, 0x0800, test_data, sizeof(test_data), NULL) == -1) {
+            errorf("net_device_output() failure");
+            break;
+        }
+        sleep(1);
+    }
+    net_shutdown();
+    return 0;
 }
