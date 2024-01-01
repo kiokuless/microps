@@ -32,16 +32,87 @@ int net_device_register(struct net_device *dev){
     return 0;
 }
 
-static int net_device_open(struct net_device *dev){}
+static int net_device_open(struct net_device *dev) {
+    if (NET_DEVICE_IS_UP(dev)) {
+        errorf("already opened, dev=%s", dev->name);
+        return -1;
+    }
+    if (dev->ops->open) {
+        if(dev->ops->open(dev) == -1) {
+            errorf("failure, dev=%s", dev->name);
+            return -1;
+        }
+    }
+    dev->flags |= NET_DEVICE_FLAG_UP;
+    infof("dev=%s, state=%s", dev->name, NET_DEVICE_STATE(dev));
+    return 0;
+}
 
-static int net_device_close(struct net_device *dev){}
+static int net_device_close(struct net_device *dev){
+    if (!NET_DEVICE_IS_UP(dev)) {
+        errorf("not opened, dev=%s", dev->name);
+        return -1;
+    }
+    if (dev->ops->close) {
+        if(dev->ops->close(dev) == -1) {
+            errorf("failure, dev=%s", dev->name);
+            return -1;
+        }
+    }
+    dev->flags &= ~NET_DEVICE_FLAG_UP;
+    infof("dev=%s, state=%s", dev->name, NET_DEVICE_STATE(dev));
+    return 0;
+}
 
-int net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst){}
+int net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst){
+    if(!NET_DEVICE_IS_UP(dev)) {
+        errorf("not opened, dev=%s", dev->name);
+        return -1;
+    }
+    if (dev->mtu < len) {
+        errorf("too long, dev=%s, mtu=%u", dev->name, dev->mtu);
+        return -1;
+    }
+    debugdump(data, len);
+    if(dev->ops->transmit(dev, type, data, len, dst) == -1) {
+        errorf("device trasmit failure, dev=%s, len=%zu", dev->name, len);
+        return -1;
+    }
+    return 0;
+}
 
-int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net_device *dev){}
+// デバイスが受信したパケットをプロトコルスタックに渡す関数
+// プロトコルスタックへのデータの入口であり、デバイスドライバから呼び出されることを想定している
+// この先のステップで利用する（このステップでは利用しない）
+int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net_device *dev){
+    debugf("dev=%s, type=%04x, len=%zu", dev->name, type, len);
+    debugdump(data, len);
+    return 0;
 
-int net_run(void){}
+}
 
-void net_shutdown(void){}
+int net_run(void) {
+    struct net_device *dev;
 
-int net_init(void){}
+    debugf("open all devices...");
+    for (dev = devices; dev; dev = dev->next) {
+        net_device_open(dev);
+    }
+    debugf("running...");
+    return 0;
+}
+
+void net_shutdown(void){
+    struct net_device *dev;
+
+    debugf("close all devices...");
+    for (dev = devices; dev; dev = dev->next) {
+        net_device_close(dev);
+    }
+    debugf("shutting down");
+}
+
+int net_init(void){
+    infof("initialized");
+    return 0;
+}

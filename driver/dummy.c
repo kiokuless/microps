@@ -7,7 +7,12 @@
 
 #define DUMMY_MTU UINT16_MAX /* maximum size of IP datagram */
 
-static int dummy_transmit(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst) {}
+static int dummy_transmit(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst) {
+    debugf("dev=%s, type=%0x04x, len=%zu", dev->name, type, len);
+    debugdump(data, len);
+    // drop data
+    return 0;
+}
 
 static struct net_device_ops dummy_ops = {
     .transmit = dummy_transmit,
