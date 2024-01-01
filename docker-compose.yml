@@ -1,0 +1,8 @@
+version: "3"
+
+services:
+  microps-builder:
+    build: .
+    volumes:
+      - ./:/workspace
+    privileged: true
